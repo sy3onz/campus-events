@@ -7,10 +7,23 @@
 
   let filterState = {q:'', status:'all', month:'all'};
 
+  // Mounted controllers for the two React-Bits-ported widgets on this page
+  // (js/glide-select.js, js/card-swap.js). Re-render replaces the DOM via
+  // innerHTML, so any *previous* instance is torn down first to stop its
+  // running GSAP interval / listeners before the new one is created.
+  let monthSelectCtrl = null;
+  let featuredSwapCtrl = null;
+  window.addEventListener('hashchange', function(){
+    if(!location.hash.slice(1).startsWith('/events') && featuredSwapCtrl){
+      featuredSwapCtrl.destroy(); featuredSwapCtrl = null;
+    }
+  });
+
   function monthKeyOf(ts){ const d = new Date(ts); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
   function monthLabelOf(ts){ return new Date(ts).toLocaleDateString('en-US',{month:'long', year:'numeric'}); }
 
   function renderEventsList(user){
+    if(featuredSwapCtrl){ featuredSwapCtrl.destroy(); featuredSwapCtrl = null; }
     const root = document.getElementById('app-root');
     const events = Store.listEvents().filter(ev=>{
       if(user.role!=='admin' && ev.status!=='published') return false;
@@ -19,7 +32,9 @@
     const monthsSeen = [];
     events.forEach(ev=>{
       const key = monthKeyOf(ev.startDate);
-      if(!monthsSeen.find(m=>m.key===key)) monthsSeen.push({key, label: monthLabelOf(ev.startDate)});
+      let m = monthsSeen.find(m=>m.key===key);
+      if(!m){ m = {key, label: monthLabelOf(ev.startDate), count:0}; monthsSeen.push(m); }
+      m.count++;
     });
     monthsSeen.sort((a,b)=> a.key.localeCompare(b.key));
 
@@ -44,13 +59,27 @@
       <div class="grid grid-2" style="margin-bottom:8px;">${g.items.map(ev=>Comp.eventTicketCard(ev)).join('')}</div>
     `).join('');
 
+    // "Happening soon" CardSwap showcase — up to 3 ongoing/upcoming events,
+    // soonest first. Skipped entirely (no empty deck, no dead space) when
+    // there's nothing upcoming to feature.
+    const featured = events
+      .filter(ev=>{ const s = Comp.eventStatusOf(ev); return s==='ongoing' || s==='upcoming'; })
+      .sort((a,b)=> a.startDate-b.startDate)
+      .slice(0,3);
+
     const body = `
+      ${featured.length ? `
+      <div class="card-swap-shell" style="height:230px;margin-bottom:26px;">
+        <div style="position:relative;z-index:1;max-width:360px;">
+          <div class="ticket-eyebrow" style="color:var(--gold-deep);margin-bottom:4px;">Happening soon</div>
+          <h2 style="font-size:19px;margin-bottom:6px;">Don&rsquo;t miss what&rsquo;s next</h2>
+          <p style="font-size:12.5px;">A quick rotation of what&rsquo;s ongoing or coming up \u2014 tap a card to jump straight to it.</p>
+        </div>
+        <div id="events-featured-swap"></div>
+      </div>` : ''}
       <div class="toolbar">
         <div class="search-box">${Comp.Icon.search}<input type="text" id="ev-search" placeholder="Search events…" value="${Utils.esc(filterState.q)}"></div>
-        <select id="ev-month" class="field" style="width:auto;">
-          <option value="all" ${filterState.month==='all'?'selected':''}>All months</option>
-          ${monthsSeen.map(m=>`<option value="${m.key}" ${filterState.month===m.key?'selected':''}>${m.label}</option>`).join('')}
-        </select>
+        <div id="ev-month-select"></div>
       </div>
       <div class="pill-tabs" style="margin-bottom:20px;">
         ${['all','upcoming','ongoing','past'].map(s=>`<div class="pill ${filterState.status===s?'active':''}" data-set-status="${s}">${s==='all'?'All':s[0].toUpperCase()+s.slice(1)}</div>`).join('')}
@@ -73,8 +102,35 @@
       const val = document.getElementById('ev-search').value;
       document.getElementById('ev-search').setSelectionRange(val.length,val.length);
     }, 220));
-    document.getElementById('ev-month').addEventListener('change', (e)=>{ filterState.month = e.target.value; renderEventsList(user); });
+
+    const monthOptions = [{value:'all', label:'All months', tag:String(events.length)}]
+      .concat(monthsSeen.map(m=>({value:m.key, label:m.label, tag:String(m.count)})));
+    monthSelectCtrl = GlideSelect.create(document.getElementById('ev-month-select'), {
+      options: monthOptions,
+      value: filterState.month,
+      showTags: true,
+      ariaLabel: 'Filter by month',
+      menuWidth: 210,
+      onChange: (val)=>{ filterState.month = val; renderEventsList(user); }
+    });
+
     root.querySelectorAll('[data-set-status]').forEach(el=> el.addEventListener('click', ()=>{ filterState.status = el.dataset.setStatus; renderEventsList(user); }));
+
+    if(featured.length){
+      featuredSwapCtrl = CardSwap.mount(document.getElementById('events-featured-swap'), featured.map(ev=>({
+        html: `
+          <div class="card-swap-eyebrow">${Utils.esc(ev.category)}</div>
+          <div class="card-swap-title">${Utils.esc(ev.title)}</div>
+          <div class="card-swap-meta">
+            <span>${Utils.fmtDateRange(ev.startDate, ev.endDate)}</span>
+            <span>${Utils.esc(ev.location||'TBA')}</span>
+          </div>`
+      })), {
+        width:300, height:170, cardDistance:44, verticalDistance:50,
+        delay:5000, pauseOnHover:true,
+        onCardClick:(i)=> Router.go('/events/'+featured[i].id)
+      });
+    }
   }
 
   function userRegForEvent(user, eventId){

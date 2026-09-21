@@ -9,6 +9,8 @@
 
   function renderAuth(mode){
     destroyTerminal();
+    const auraBg = document.getElementById('aura-bg');
+    if(auraBg) auraBg.classList.add('hidden');
     mode = mode || 'login';
     const root = document.getElementById('app-root');
     root.innerHTML = `

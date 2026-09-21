@@ -56,6 +56,8 @@
   }
 
   function shell({activePath, title, sub, actions, body, user}){
+    const auraBg = document.getElementById('aura-bg');
+    if(auraBg) auraBg.classList.remove('hidden');
     const groups = navConfig(user.role);
     const navHtml = groups.map(g=>`
       <div class="nav-group">
