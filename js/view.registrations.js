@@ -6,8 +6,15 @@
 
   function renderMyRegistrations(user){
     const root = document.getElementById('app-root');
+    // Show every registration tied to this account — including ones an
+    // admin issued directly ("admin-bypass") or that a teacher/admin
+    // added them to via bulk class registration ("bulk-faculty") — since
+    // any registration under their own userId is genuinely theirs and
+    // they should be able to see and manage it here. Only entries with no
+    // matched account (userId is null, e.g. guest/no-account rows) are
+    // naturally excluded already, since listRegistrationsForUser filters
+    // by userId.
     const regs = Store.listRegistrationsForUser(user.id)
-      .filter(r=>!r.extraFields || r.extraFields.addedVia!=='bulk-faculty')
       .sort((a,b)=>b.registeredAt-a.registeredAt);
 
     const rows = regs.map(r=>{

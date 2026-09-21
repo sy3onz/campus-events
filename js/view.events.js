@@ -142,9 +142,15 @@
       actionArea = `<div class="empty-state"><h3>Not yet open</h3><p>This event is still being finalized by the organizer.</p></div>`;
     } else {
       actionArea = `<button class="btn btn-gold btn-block" data-action="open-register" data-event-id="${ev.id}">Register for this event</button>`;
-      if(user.role==='faculty'){
-        actionArea += `<button class="btn btn-outline btn-block" style="margin-top:10px;" data-action="open-bulk-register" data-event-id="${ev.id}">Bulk register my class</button>`;
-      }
+    }
+    // Faculty can always bulk-register their class (including individual
+    // no-account students) regardless of whether they personally are
+    // already registered, ineligible, or the event's status/timing would
+    // otherwise block their own "Register for this event" button above —
+    // bulk-registering a class is a distinct action from a teacher's own
+    // registration and shouldn't be gated by it.
+    if(user.role==='faculty'){
+      actionArea += `<button class="btn btn-outline btn-block" style="margin-top:10px;" data-action="open-bulk-register" data-event-id="${ev.id}">Bulk register my class</button>`;
     }
     if(user.role==='admin'){
       actionArea += `<button class="btn btn-outline btn-block" style="margin-top:10px;" data-action="open-bulk-register" data-event-id="${ev.id}">${Comp.Icon.users} Bulk register a class</button>`;
