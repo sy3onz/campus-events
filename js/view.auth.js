@@ -50,7 +50,7 @@
           </div>
           <button class="btn btn-gold btn-block" type="submit">Log in</button>
         </form>`;
-      document.getElementById('login-form').addEventListener('submit', (e)=>{
+      document.getElementById('login-form').addEventListener('submit', async (e)=>{
         e.preventDefault();
         const form = e.target;
         const emailInput = form.querySelector('[name=email]');
@@ -61,18 +61,21 @@
         const fd = new FormData(form);
         const email = fd.get('email').trim();
         const password = fd.get('password');
-        const user = Store.findUserByEmail(email);
-        if(!user || user.password !== password){
-          Utils.toast('Incorrect email or password.', 'error');
-          Utils.markField(emailInput, false, 'Check your email/ID and password.');
-          Utils.markField(passInput, false, ' ');
+        const submitBtn = form.querySelector('button[type=submit]');
+        submitBtn.disabled = true; submitBtn.textContent = 'Logging in\u2026';
+        const result = await Store.login(email, password);
+        submitBtn.disabled = false; submitBtn.textContent = 'Log in';
+        if(!result.ok){
+          if(result.error==='deactivated'){
+            Utils.toast('This account has been deactivated. Contact an administrator.', 'error');
+          } else {
+            Utils.toast('Incorrect email or password.', 'error');
+            Utils.markField(emailInput, false, 'Check your email/ID and password.');
+            Utils.markField(passInput, false, ' ');
+          }
           return;
         }
-        if(user.active===false){
-          Utils.toast('This account has been deactivated. Contact an administrator.', 'error');
-          return;
-        }
-        Store.setSession(user.id);
+        const user = result.user;
         Utils.toast('Welcome back, '+user.name.split(' ')[0]+'!', 'success');
         window.App.boot();
       });
@@ -229,7 +232,7 @@
       levelSel.addEventListener('change', updateVisibility);
       updateVisibility();
 
-      document.getElementById('signup-form').addEventListener('submit', (e)=>{
+      document.getElementById('signup-form').addEventListener('submit', async (e)=>{
         e.preventDefault();
         const form = e.target;
         const fd = new FormData(form);
@@ -283,18 +286,24 @@
           return;
         }
 
-        if(Store.findUserByEmail(email)){
+        const submitBtn = form.querySelector('button[type=submit]');
+        submitBtn.disabled = true; submitBtn.textContent = 'Checking\u2026';
+
+        if(await Store.isEmailTaken(email)){
           Utils.markField(emailInput, false, 'An account with that email already exists.');
           Utils.toast('An account with that email already exists.', 'error');
+          submitBtn.disabled = false; submitBtn.textContent = 'Create account';
           return;
         }
-        if(studentId && Store.findUserByStudentId(studentId)){
+        if(studentId && await Store.isStudentIdTaken(studentId)){
           Utils.markField(idInput, false, 'An account with that ID number already exists.');
           Utils.toast('An account with that ID number already exists.', 'error');
+          submitBtn.disabled = false; submitBtn.textContent = 'Create account';
           return;
         }
 
-        const user = Store.createUser({
+        submitBtn.textContent = 'Creating account\u2026';
+        const result = await Store.signUp({
           firstName, middleName, lastName, noMiddleName: noMiddleChk.checked,
           email, password,
           role, studentId,
@@ -305,7 +314,17 @@
           gradeLevel: role==='student' && level==='seniorhigh' ? gradeLevel : '',
           section: role==='student' ? (fd.get('section')||'') : ''
         });
-        Store.setSession(user.id);
+        submitBtn.disabled = false; submitBtn.textContent = 'Create account';
+
+        if(!result.ok){
+          if(result.error==='confirm_email'){
+            Utils.toast('Account created \u2014 check your email to confirm it before logging in.', 'success');
+            renderAuth('login');
+          } else {
+            Utils.toast(result.error || 'Could not create account.', 'error');
+          }
+          return;
+        }
         Utils.toast('Account created. Welcome to Campus Pass!', 'success');
         window.App.boot();
       });

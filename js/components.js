@@ -134,7 +134,7 @@
             <div style="font-size:11px;color:var(--slate-light);margin-top:3px;">${Utils.fmtDateTime(n.createdAt)}</div>
           </div>`).join('') : `<p style="text-align:center;padding:20px 0;">No notifications yet.</p>`}
       </div>`);
-    Store.markAllRead(user.id);
+    Store.markAllRead(user.id).catch(()=>{}); // fire-and-forget: not critical if this one write is slow/fails
   }
 
   function eventStatusOf(event){

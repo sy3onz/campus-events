@@ -4,14 +4,10 @@
              Rifle Green #283618 (ink / primary dark)
              Olive Drab  #606C38 (primary accent, replaces "gold")
              Cream       #FEFAE0 (page background)
-   Every accent is built to sit in the same warm-earth family as the
-   brand pair above rather than compete with it: --forest is a pine
-   green kept close to the olive hue instead of drifting toward teal,
-   --plum is a warm wine/burgundy (not a cool violet) so it reads as
-   a natural partner to the burnt-orange --coral, and it's used in
-   exactly one role — informational tags/notices — rather than spread
-   across glows, toasts and charts. --coral stays reserved for
-   alerts/destructive actions.
+   A single warm burnt-orange (#BC6C25) is introduced only for
+   alerts/destructive actions — three colors alone can't carry both
+   a brand accent and a danger state with enough contrast, and this
+   tone sits naturally alongside olive + cream.
    Type: Fraunces (display, event titles & ticket numerals)
          Inter (UI body) · IBM Plex Mono (codes, IDs, data)
    Signature: the perforated "ticket stub" card used for every
@@ -27,18 +23,13 @@
   --gold:#606C38;          /* Olive Drab — primary accent (kept var name "gold" so buttons/badges/etc. don't need renaming) */
   --gold-deep:#4A5429;
   --coral:#BC6C25;         /* burnt orange — alerts / destructive */
-  --forest:#325F2B;        /* pine green — kept close to the olive hue (112° vs ink/gold's 74–88°) instead of the cooler, further-off #2F6B4F used before, so it reads as "part of the family" not a different brand */
-  --forest-bg:#DFEEDD;
-  --plum:#743449;          /* warm wine/burgundy — recolored from a cooler, flatter violet (#6B4C72) that sat oddly next to the earth-tone family; used only for informational badge tags, nowhere else */
-  --plum-deep:#502130;
-  --plum-bright:#D49BAE;   /* plum for use as text on dark (--ink) surfaces */
-  --plum-bg:#F4E1E8;
+  --forest:#3F4F22;        /* deep olive — success / checked-in */
+  --forest-bg:#E1E4C9;
   --coral-bg:#F3DFC1;
   --gold-bg:#E7E9D3;
   --slate:#5C6944;         /* muted olive-gray text */
-  --slate-light:#63714F;   /* tertiary text — darkened from a prior tint that read at ~3:1 on cream, below AA body-text contrast */
-  --gold-bright:#A9B97C;   /* olive text/glow for use on dark (--ink) surfaces — --gold itself is only ~2.3:1 on --ink, too low to read as text */
-  --line:#CFC386;         /* darkened — the old #E4DDAF sat at ~1.3:1 against --card/--paper, so cards and dividers had almost no visible edge without relying on shadow alone */
+  --slate-light:#8C9470;
+  --line:#E4DDAF;
   --line-dark:#1C2712;
 
   --font-display:'Fraunces', Georgia, serif;
@@ -48,7 +39,7 @@
   --radius-s:8px;
   --radius-m:14px;
   --radius-l:22px;
-  --shadow-card:0 1px 2px rgba(20,33,61,.07), 0 10px 28px -12px rgba(20,33,61,.22);
+  --shadow-card:0 1px 2px rgba(20,33,61,.05), 0 8px 24px -12px rgba(20,33,61,.18);
   --shadow-pop:0 12px 40px -8px rgba(20,33,61,.35);
 }
 
@@ -74,7 +65,7 @@ p{margin:0 0 10px;color:var(--slate);}
 a{color:inherit;}
 button{font-family:inherit;}
 :focus-visible{outline:2px solid var(--gold-deep); outline-offset:2px;}
-::selection{background:var(--gold); color:#fff;}
+::selection{background:var(--gold); color:var(--ink);}
 
 .mono{font-family:var(--font-mono);}
 .muted{color:var(--slate);}
@@ -107,7 +98,7 @@ button{font-family:inherit;}
   width:34px;height:34px;border-radius:10px;
   background:var(--gold);
   display:flex;align-items:center;justify-content:center;
-  color:#fff; font-family:var(--font-display); font-weight:700; font-size:16px;
+  color:var(--ink); font-family:var(--font-display); font-weight:700; font-size:16px;
   flex:none;
 }
 .brand-name{font-family:var(--font-display); font-size:17px; font-weight:600; color:#fff; line-height:1.1;}
@@ -125,7 +116,7 @@ button{font-family:inherit;}
   border:1px solid transparent;
 }
 .nav-link:hover{background:rgba(255,255,255,.06); color:#fff;}
-.nav-link.active{background:rgba(169,185,124,.16); color:var(--gold-bright); border-color:rgba(169,185,124,.35);}
+.nav-link.active{background:rgba(232,163,61,.14); color:var(--gold); border-color:rgba(232,163,61,.3);}
 .nav-icon{width:17px;height:17px;flex:none; display:inline-flex;}
 .nav-icon svg{width:100%;height:100%;}
 
@@ -140,7 +131,7 @@ button{font-family:inherit;}
 .user-meta-name{font-size:13px; font-weight:600; color:#fff;}
 .user-meta-role{font-size:11px; color:rgba(255,255,255,.5); text-transform:capitalize;}
 .logout-link{font-size:12px; color:rgba(255,255,255,.5); cursor:pointer; margin-top:8px; display:inline-block;}
-.logout-link:hover{color:var(--gold-bright);}
+.logout-link:hover{color:var(--gold);}
 
 .main{flex:1; min-width:0; display:flex; flex-direction:column;}
 
@@ -167,7 +158,7 @@ button{font-family:inherit;}
 .btn:active{transform:scale(.97);}
 .btn-primary{background:var(--ink); color:#fff;}
 .btn-primary:hover{background:var(--ink-soft);}
-.btn-gold{background:var(--gold); color:#fff;}
+.btn-gold{background:var(--gold); color:var(--ink);}
 .btn-gold:hover{background:var(--gold-deep); color:#fff;}
 .btn-outline{background:transparent; border-color:var(--line); color:var(--ink);}
 .btn-outline:hover{border-color:var(--ink); }
@@ -189,14 +180,9 @@ button{font-family:inherit;}
 .grid-3{grid-template-columns:repeat(3,1fr);}
 .grid-4{grid-template-columns:repeat(4,1fr);}
 
-.stat-card{padding:18px 20px; border-radius:var(--radius-m); background:var(--card); border:1px solid var(--line); border-top:3px solid var(--gold-deep);}
-.stat-num{font-family:var(--font-display); font-size:30px; font-weight:600; line-height:1; color:var(--gold-deep);}
+.stat-card{padding:18px 20px; border-radius:var(--radius-m); background:var(--card); border:1px solid var(--line);}
+.stat-num{font-family:var(--font-display); font-size:30px; font-weight:600; line-height:1;}
 .stat-label{font-size:12px; color:var(--slate); margin-top:6px; text-transform:uppercase; letter-spacing:.04em;}
-/* alternate just two related, same-family tones (olive / pine) rather
-   than cycling through every accent color in the palette — a four-way
-   cycle through unrelated hues read as chaotic instead of intentional */
-.stat-card:nth-child(2n){border-top-color:var(--forest);}
-.stat-card:nth-child(2n) .stat-num{color:var(--forest);}
 
 /* ---------- ticket stub — signature component ---------- */
 .ticket{
@@ -227,7 +213,7 @@ button{font-family:inherit;}
 }
 .ticket-perf::before{top:-9px;}
 .ticket-perf::after{bottom:-9px;}
-.ticket-eyebrow{font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--gold-bright); font-weight:600;}
+.ticket-eyebrow{font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--gold); font-weight:600;}
 .ticket-code{font-family:var(--font-mono); font-size:13px; letter-spacing:.03em;}
 .ticket-cat{
   display:inline-flex; align-items:center; gap:6px;
@@ -249,7 +235,6 @@ button{font-family:inherit;}
 }
 .badge-gold{background:var(--gold-bg); color:var(--gold-deep);}
 .badge-forest{background:var(--forest-bg); color:var(--forest);}
-.badge-plum{background:var(--plum-bg); color:var(--plum-deep);}
 .badge-coral{background:var(--coral-bg); color:#6E3A12;}
 .badge-slate{background:var(--paper-dim); color:var(--slate);}
 .badge-ink{background:var(--ink); color:#fff;}
@@ -268,7 +253,7 @@ select,textarea{
   background:var(--paper); font-family:inherit; font-size:13.5px; color:var(--ink);
 }
 textarea{resize:vertical; min-height:80px;}
-input:focus,select:focus,textarea:focus{outline:none; border-color:var(--gold-deep); background:#fff; box-shadow:0 0 0 3px rgba(74,84,41,.22);}
+input:focus,select:focus,textarea:focus{outline:none; border-color:var(--gold-deep); background:#fff; box-shadow:0 0 0 3px rgba(232,163,61,.18);}
 .row{display:flex; gap:14px;}
 .row > .field{flex:1;}
 .check-row{display:flex; align-items:center; gap:8px; margin-bottom:8px; font-size:13px;}
@@ -277,7 +262,7 @@ fieldset{border:1px solid var(--line); border-radius:var(--radius-s); padding:12
 legend{font-size:12px; font-weight:700; color:var(--ink); padding:0 6px;}
 
 .auth-shell{min-height:100vh; display:flex; align-items:center; justify-content:center; background:var(--ink); padding:24px;
-  background-image:radial-gradient(circle at 15% 20%, rgba(169,185,124,.16), transparent 40%), radial-gradient(circle at 85% 80%, rgba(169,185,124,.10), transparent 45%);}
+  background-image:radial-gradient(circle at 15% 20%, rgba(232,163,61,.12), transparent 40%), radial-gradient(circle at 85% 80%, rgba(232,163,61,.08), transparent 40%);}
 .auth-card{width:100%; max-width:420px; background:var(--card); border-radius:var(--radius-l); padding:34px 32px; box-shadow:var(--shadow-pop);}
 .auth-card.wide{max-width:500px;}
 .auth-brand{display:flex; align-items:center; gap:10px; margin-bottom:22px;}
@@ -338,9 +323,9 @@ td.mono{font-size:12px;}
 /* ---------- digital ticket / QR view ---------- */
 .qr-pass{max-width:380px; margin:0 auto; text-align:center;}
 .qr-pass-card{background:var(--ink); color:#fff; border-radius:var(--radius-l); padding:28px 24px; position:relative; overflow:hidden;}
-.qr-pass-card::before{content:''; position:absolute; inset:0; background-image:radial-gradient(circle at 20% 15%, rgba(169,185,124,.20), transparent 45%);}
+.qr-pass-card::before{content:''; position:absolute; inset:0; background-image:radial-gradient(circle at 20% 15%, rgba(232,163,61,.18), transparent 45%);}
 .qr-box{background:#fff; padding:14px; border-radius:14px; display:inline-block; margin:16px 0;}
-.qr-pass-code{font-family:var(--font-mono); letter-spacing:.08em; font-size:14px; color:var(--gold-bright);}
+.qr-pass-code{font-family:var(--font-mono); letter-spacing:.08em; font-size:14px; color:var(--gold);}
 
 /* ---------- misc ---------- */
 .divider{height:1px; background:var(--line); margin:18px 0;}

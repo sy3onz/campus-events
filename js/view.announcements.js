@@ -25,7 +25,7 @@
           <h3 style="font-size:16px;">${Utils.esc(a.title)}</h3>
           <span style="font-size:11.5px;color:var(--slate-light);white-space:nowrap;">${Utils.fmtDateTime(a.createdAt)}</span>
         </div>
-        ${ev?`<span class="badge badge-plum" style="margin-bottom:8px;display:inline-flex;">${Utils.esc(ev.title)}</span>`:''}
+        ${ev?`<span class="badge badge-gold" style="margin-bottom:8px;display:inline-flex;">${Utils.esc(ev.title)}</span>`:''}
         <p style="font-size:13.5px;color:var(--ink);margin-top:8px;">${Utils.esc(a.body)}</p>
       </div>`;
     }).join('') : `

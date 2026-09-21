@@ -166,7 +166,7 @@
           </div>
           <p style="font-size:14px;color:var(--ink);margin-bottom:20px;">${Utils.esc(ev.description)}</p>
           <div class="badge badge-slate" style="margin-bottom:8px;">${Utils.esc(Utils.audienceLabel(ev))}</div>
-          ${ev.requiresApproval?`<div class="badge badge-plum" style="margin-bottom:12px;">Registrations require approval</div>`:''}
+          ${ev.requiresApproval?`<div class="badge badge-gold" style="margin-bottom:12px;">Registrations require approval</div>`:''}
           <h3 style="font-size:15px;margin:22px 0 12px;">Activities & sessions${canViewRegistrants?' <span class="muted" style="font-size:11.5px;font-weight:400;">(tap an activity to see who\u2019s registered)</span>':''}</h3>
           ${activitiesHtml}
         </div>
@@ -213,7 +213,7 @@
       </div>`, {});
   };
 
-  Forms['register-event'] = function(form){
+  Forms['register-event'] = async function(form){
     const eventId = form.dataset.eventId;
     const ev = Store.getEvent(eventId);
     const user = window.App.currentUser();
@@ -223,13 +223,22 @@
       Utils.toast('Select at least one activity to join.', 'error'); return;
     }
     const status = ev.requiresApproval ? 'pending' : 'approved';
-    const reg = Store.createRegistration({
-      eventId, activityIds, userId:user.id, status,
-      userSnapshot:{name:user.name, email:user.email, role:user.role, studentId:user.studentId, course:user.course, strand:user.strand, yearLevel:user.yearLevel, gradeLevel:user.gradeLevel, section:user.section},
-      extraFields:{notes: fd.get('notes')||''},
-      addedBy:user.id
-    });
-    Store.notify(user.id, status==='pending'
+    const submitBtn = form.querySelector('button[type=submit]');
+    submitBtn.disabled = true;
+    let reg;
+    try{
+      reg = await Store.createRegistration({
+        eventId, activityIds, userId:user.id, status,
+        userSnapshot:{name:user.name, email:user.email, role:user.role, studentId:user.studentId, course:user.course, strand:user.strand, yearLevel:user.yearLevel, gradeLevel:user.gradeLevel, section:user.section},
+        extraFields:{notes: fd.get('notes')||''},
+        addedBy:user.id
+      });
+    }catch(err){
+      Utils.toast('Could not complete your registration \u2014 please try again.', 'error');
+      submitBtn.disabled = false;
+      return;
+    }
+    await Store.notify(user.id, status==='pending'
       ? `Your registration for ${ev.title} is pending organizer approval. Ticket ${reg.ticketCode}.`
       : `You're registered for ${ev.title}. Ticket ${reg.ticketCode}.`);
     Utils.closeModal();
@@ -239,10 +248,14 @@
   };
 
   Actions['cancel-registration'] = function(ds){
-    Comp.confirmDialog('This will cancel your registration and free up your slot.', ()=>{
-      Store.updateRegistration(ds.regId, {status:'cancelled'});
-      Utils.toast('Registration cancelled.', 'success');
-      window.App.rerender();
+    Comp.confirmDialog('This will cancel your registration and free up your slot.', async ()=>{
+      try{
+        await Store.updateRegistration(ds.regId, {status:'cancelled'});
+        Utils.toast('Registration cancelled.', 'success');
+        window.App.rerender();
+      }catch(err){
+        Utils.toast('Could not cancel \u2014 please try again.', 'error');
+      }
     }, {title:'Cancel registration?', confirmLabel:'Yes, cancel', danger:true});
   };
 
@@ -354,7 +367,7 @@
       if(match){
         tag.innerHTML = `<span class="badge badge-forest">Matched: existing ${Utils.esc(match.role)} account</span>`;
       } else {
-        tag.innerHTML = `<span class="badge badge-plum">No account found \u2014 will be registered manually (no-account entry)</span>`;
+        tag.innerHTML = `<span class="badge badge-gold">No account found \u2014 will be registered manually (no-account entry)</span>`;
       }
     }
 
@@ -390,12 +403,12 @@
       document.getElementById('bulk-template-name-field').style.display = saveTplChk.checked ? 'block':'none';
     });
 
-    function doSubmit(){
+    async function doSubmit(){
       const eventId = ev.id;
       const evObj = Store.getEvent(eventId);
       const mainActivityIds = Array.from(document.querySelectorAll('[name=main-activities]:checked')).map(i=>i.value);
       const extraEventIds = Array.from(document.querySelectorAll('[data-extra-event-chk]:checked')).map(i=>i.value);
-      const rows = document.querySelectorAll('#bulk-rows .bulk-row');
+      const rows = Array.from(document.querySelectorAll('#bulk-rows .bulk-row'));
       let attributedTo = actingUser;
       if(isAdmin){
         const teacherId = document.getElementById('bulk-teacher').value;
@@ -406,46 +419,55 @@
       const targetEvents = [{id:eventId, title:evObj.title, activityIds:mainActivityIds}]
         .concat(extraEventIds.map(id=>({id, title:Store.getEvent(id).title, activityIds:[]})));
 
-      let count = 0, emailed = 0, matchedCount = 0, noAccountCount = 0;
+      const submitBtn = document.getElementById('submit-bulk');
+      submitBtn.disabled = true; submitBtn.textContent = 'Registering\u2026';
+
+      let count = 0, emailed = 0, noAccountCount = 0, failed = 0;
       const bulkGroupId = Store.uid('bulk');
       const studentsForTemplate = [];
-      rows.forEach(row=>{
+      for(const row of rows){
         const name = row.querySelector('[name=b-name]').value.trim();
         const idNum = row.querySelector('[name=b-id]').value.trim();
-        if(!name) return;
+        if(!name) continue;
         studentsForTemplate.push({name, idNum});
         const looksLikeEmail = idNum.includes('@');
         const match = matchFor(name);
-        if(match) matchedCount++; else noAccountCount++;
+        if(!match) noAccountCount++;
 
-        targetEvents.forEach(target=>{
-          if(looksLikeEmail) emailed++;
-          Store.createRegistration({
-            eventId: target.id, activityIds: target.activityIds,
-            // A matched account is registered under its real user id; an
-            // unmatched name is never attributed to the teacher's account —
-            // it's registered exactly like a manual/no-account guest entry.
-            userId: match ? match.id : null,
-            userSnapshot: match
-              ? {name:match.name, email:match.email, role:match.role, studentId:match.studentId, course:match.course, strand:match.strand, yearLevel:match.yearLevel, gradeLevel:match.gradeLevel, section: section||match.section}
-              : {name, email:idNum||'(no email provided)', role:'student', studentId:'', course:'', strand:'', yearLevel:'', gradeLevel:'', section},
-            extraFields:{addedVia: match ? 'bulk-faculty' : 'bulk-faculty-noaccount', facultyName:attributedTo.name, section, deliveryEmail: looksLikeEmail?idNum:''},
-            addedBy: attributedTo.id, bulkGroupId,
-            status: evObj.requiresApproval ? 'pending' : 'approved'
-          });
-        });
+        for(const target of targetEvents){
+          try{
+            await Store.createRegistration({
+              eventId: target.id, activityIds: target.activityIds,
+              // A matched account is registered under its real user id; an
+              // unmatched name is never attributed to the teacher's account —
+              // it's registered exactly like a manual/no-account guest entry.
+              userId: match ? match.id : null,
+              userSnapshot: match
+                ? {name:match.name, email:match.email, role:match.role, studentId:match.studentId, course:match.course, strand:match.strand, yearLevel:match.yearLevel, gradeLevel:match.gradeLevel, section: section||match.section}
+                : {name, email:idNum||'(no email provided)', role:'student', studentId:'', course:'', strand:'', yearLevel:'', gradeLevel:'', section},
+              extraFields:{addedVia: match ? 'bulk-faculty' : 'bulk-faculty-noaccount', facultyName:attributedTo.name, section, deliveryEmail: looksLikeEmail?idNum:''},
+              addedBy: attributedTo.id, bulkGroupId,
+              status: evObj.requiresApproval ? 'pending' : 'approved'
+            });
+            if(looksLikeEmail) emailed++;
+          }catch(err){ failed++; }
+        }
         count++;
-      });
-      if(count===0){ Utils.toast('Add at least one student name.', 'error'); return; }
+      }
+      if(count===0){ Utils.toast('Add at least one student name.', 'error'); submitBtn.disabled=false; submitBtn.textContent='Register class'; return; }
 
       if(saveTplChk.checked){
         const tplName = document.getElementById('bulk-template-name').value.trim() || section || ('Class '+new Date().toLocaleDateString());
-        Store.saveBulkTemplate({name: tplName, section, students: studentsForTemplate, createdBy: actingUser.id});
+        try{ await Store.saveBulkTemplate({name: tplName, section, students: studentsForTemplate, createdBy: actingUser.id}); }
+        catch(err){ /* template save failing shouldn't block the registrations that already succeeded */ }
       }
 
       Utils.closeModal();
       const eventWord = targetEvents.length>1 ? `${targetEvents.length} events` : evObj.title;
       Utils.toast(`${count} student${count>1?'s':''} registered for ${eventWord}.`, 'success');
+      if(failed>0){
+        Utils.toast(`${failed} registration${failed>1?'s':''} failed to save \u2014 check your connection and try those rows again.`, 'error');
+      }
       if(noAccountCount>0){
         Utils.toast(`${noAccountCount} of ${count} had no matching account and ${noAccountCount>1?'were':'was'} registered manually as no-account entries.`, 'error');
       }
@@ -551,35 +573,43 @@
       });
     });
 
-    document.getElementById('admin-reg-submit').addEventListener('click', (e)=>{
+    document.getElementById('admin-reg-submit').addEventListener('click', async (e)=>{
       const eventId = e.target.dataset.eventId;
       const evObj = Store.getEvent(eventId);
       const activityIds = Array.from(document.querySelectorAll('[name=admin-reg-activities]:checked')).map(i=>i.value);
       const adminUser = window.App.currentUser();
       const activeTab = document.querySelector('[data-admin-reg-tab].active').dataset.adminRegTab;
       let reg;
+      const submitBtn = e.target;
+      submitBtn.disabled = true;
 
-      if(activeTab==='existing'){
-        const userId = document.getElementById('admin-reg-user').value;
-        if(!userId){ Utils.toast('Select an account to register.', 'error'); return; }
-        const u = Store.getUser(userId);
-        reg = Store.createRegistration({
-          eventId, activityIds, userId: u.id,
-          userSnapshot:{name:u.name, email:u.email, role:u.role, studentId:u.studentId, course:u.course, strand:u.strand, yearLevel:u.yearLevel, gradeLevel:u.gradeLevel, section:u.section},
-          extraFields:{addedVia:'admin-bypass'}, addedBy: adminUser.id
-        });
-        Store.notify(u.id, `You've been registered for ${evObj.title} by an administrator. Ticket ${reg.ticketCode}.`);
-      } else {
-        const name = document.getElementById('admin-reg-name').value.trim();
-        const email = document.getElementById('admin-reg-email').value.trim();
-        const role = document.getElementById('admin-reg-role').value;
-        const section = document.getElementById('admin-reg-section').value.trim();
-        if(!name){ Utils.toast('Enter a name.', 'error'); return; }
-        reg = Store.createRegistration({
-          eventId, activityIds, userId: null,
-          userSnapshot:{name, email: email||'(no email provided)', role, studentId:'', course:'', strand:'', yearLevel:'', gradeLevel:'', section},
-          extraFields:{addedVia:'admin-guest', deliveryEmail: email||''}, addedBy: adminUser.id
-        });
+      try{
+        if(activeTab==='existing'){
+          const userId = document.getElementById('admin-reg-user').value;
+          if(!userId){ Utils.toast('Select an account to register.', 'error'); submitBtn.disabled=false; return; }
+          const u = Store.getUser(userId);
+          reg = await Store.createRegistration({
+            eventId, activityIds, userId: u.id,
+            userSnapshot:{name:u.name, email:u.email, role:u.role, studentId:u.studentId, course:u.course, strand:u.strand, yearLevel:u.yearLevel, gradeLevel:u.gradeLevel, section:u.section},
+            extraFields:{addedVia:'admin-bypass'}, addedBy: adminUser.id
+          });
+          await Store.notify(u.id, `You've been registered for ${evObj.title} by an administrator. Ticket ${reg.ticketCode}.`);
+        } else {
+          const name = document.getElementById('admin-reg-name').value.trim();
+          const email = document.getElementById('admin-reg-email').value.trim();
+          const role = document.getElementById('admin-reg-role').value;
+          const section = document.getElementById('admin-reg-section').value.trim();
+          if(!name){ Utils.toast('Enter a name.', 'error'); submitBtn.disabled=false; return; }
+          reg = await Store.createRegistration({
+            eventId, activityIds, userId: null,
+            userSnapshot:{name, email: email||'(no email provided)', role, studentId:'', course:'', strand:'', yearLevel:'', gradeLevel:'', section},
+            extraFields:{addedVia:'admin-guest', deliveryEmail: email||''}, addedBy: adminUser.id
+          });
+        }
+      }catch(err){
+        Utils.toast('Could not issue the ticket \u2014 please try again.', 'error');
+        submitBtn.disabled = false;
+        return;
       }
 
       Utils.closeModal();

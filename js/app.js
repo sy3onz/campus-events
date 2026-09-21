@@ -35,7 +35,17 @@
 
   function rerender(){ Router.resolve(); }
 
-  function boot(){
+  async function boot(){
+    // On the very first load, Store is still checking for an existing
+    // Supabase session and (if found) fetching everything — show a
+    // lightweight loading state instead of a blank screen while that
+    // resolves. On subsequent calls (after login/logout) this resolves
+    // instantly since Store.ready is already settled.
+    const root = document.getElementById('app-root');
+    if(!root.innerHTML.trim()){
+      root.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:var(--font-body, sans-serif);color:var(--slate, #666);">Loading\u2026</div>';
+    }
+    await Store.ready;
     const user = currentUser();
     if(!user){
       Views.renderAuth('login');
@@ -80,10 +90,11 @@
 
     const logoutBtn = e.target.closest('[data-action="logout"]');
     if(logoutBtn){
-      Store.clearSession();
-      Utils.toast('Logged out.', 'success');
-      location.hash = '';
-      Views.renderAuth('login');
+      Store.logout().then(()=>{
+        Utils.toast('Logged out.', 'success');
+        location.hash = '';
+        Views.renderAuth('login');
+      });
       return;
     }
 

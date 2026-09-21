@@ -1,5 +1,20 @@
 # Campus Pass — School Event Management System
 
+> **Recent updates (newest):** the app now runs on a **real, shared
+> Supabase (Postgres) database** instead of each browser's own
+> `localStorage`. Every account, event, registration, announcement, and
+> audit-log entry now lives in one place that every visitor's browser
+> talks to over the internet — so an admin can see registrations from
+> students on completely different devices, in the Supabase Table Editor
+> or by refreshing the app. Login/signup now go through Supabase's real
+> Auth system (passwords are hashed and secured server-side, not stored
+> as plain text); Row Level Security policies enforce who can see and
+> edit what. See `supabase/schema.sql` and `supabase/schema_patch_1_signup_checks.sql`
+> for the full database setup. One practical effect: there's no more
+> pre-seeded demo dataset or `Store.reset()` — every account and event now
+> has to be created for real, once, through the app itself (see "How to
+> run it" below).
+>
 > **Recent updates (latest):** the color palette was changed again, this
 > time to an olive/rifle-green scheme on a cream background (Rifle Green
 > `#283618`, Olive Drab `#606C38`, Cream `#FEFAE0`), with a single
@@ -74,42 +89,36 @@ school event (Anniversary, Intramurals, Job Fair, Recognition Day, Christmas
 Party, and any future event) instead of juggling separate spreadsheets and
 Google Forms.
 
-This is a **fully functional working prototype** — every feature below runs
-for real in your browser. There is no separate server to install: user
-accounts, events, registrations, tickets, check-ins, and announcements are
-all stored in your browser's `localStorage`, so the app behaves like a real
-multi-user system across every page of the app (open it in an incognito
-window to start with a fresh demo dataset).
+This is a **fully functional system** backed by a real Supabase (Postgres)
+database — every account, event, registration, ticket, check-in, and
+announcement is stored centrally, shared by everyone who uses the site, not
+just the browser that created it.
 
 ---
 
 ## How to run it
 
-1. Unzip the folder.
-2. Double-click `index.html` — **or**, for the smoothest experience (some
-   browsers restrict local files), run a tiny local server from inside the
-   folder:
-   ```bash
-   python3 -m http.server 8080
-   ```
-   then open `http://localhost:8080` in your browser.
-3. Log in with one of the demo accounts below, or create a new account.
+1. Set up the database once, if you haven't yet: create a Supabase project,
+   then run `supabase/schema.sql` and `supabase/schema_patch_1_signup_checks.sql`
+   in its SQL Editor (in that order). Put your project's URL and anon key
+   into `js/config.js`.
+2. In Supabase, go to Authentication → Providers → Email and turn off
+   **"Confirm email"** (and, in Authentication → Settings, "Secure email
+   change") so signup and email changes work instantly, matching this
+   prototype's simulated-email flow. Turn these back on if you later want
+   real email verification.
+3. Open `index.html` (double-click it, or serve the folder with
+   `python3 -m http.server 8080` for the smoothest experience) — or deploy
+   it as a static site (GitHub Pages, Netlify, etc).
+4. Tap **Create account** to sign up. The first account should be created
+   as a student/faculty/alumni role through the form, then promoted to
+   `admin` (or `faculty`) by editing that row's `role` column directly in
+   Supabase's Table Editor — after that, an admin can manage roles from
+   inside the app itself (Admin → Manage Users).
 
-An internet connection is used only to load Google Fonts and three small
-libraries (QR code rendering, PDF export) from a public CDN — everything
-else works fully offline.
-
-### Demo accounts
-
-| Role | Email | Password |
-|---|---|---|
-| Admin / Organizer | admin@school.edu | admin123 |
-| Faculty Adviser | rcruz@school.edu | faculty123 |
-| Student | maria.santos@school.edu | student123 |
-| Alumni / Guest | john.delacruz@alumni.school.edu | alumni123 |
-
-You can also tap **Create account** to sign up as a new student, faculty
-member, or alumni/guest.
+An internet connection is required (this is a real shared database, not an
+offline demo) — plus Google Fonts and three small libraries (QR rendering,
+PDF export) from a public CDN.
 
 ---
 
@@ -152,12 +161,13 @@ every event they attend.
 - **Responsive** — the layout collapses to a single column and a slide-out
   nav drawer under ~760px width; every card, table and modal is usable on a
   phone.
-- **Fast** — everything runs client-side against an in-memory/localStorage
-  store, so there's no network round-trip for normal use.
-- **Secure-by-design pattern (prototype-level)** — session and account data
-  are namespaced in `localStorage`; a production build would swap this data
-  layer for a real authenticated API without touching any view code, since
-  all data access already goes through the single `Store` module.
+- **Fast** — reads are served from an in-memory cache that mirrors the
+  database (populated at login), so most of the UI feels instant; writes go
+  to Supabase over the network and update that cache with the real result.
+- **Secure-by-design** — Supabase Auth handles password hashing and
+  sessions (nothing password-related is ever stored in the app's own
+  tables); Row Level Security policies on every table enforce who can read
+  or write what, independent of anything the client-side JS does.
 - **Scalable to new events** — creating a new event never requires new code;
   the same event model supports any number of activities, capacities, and
   audience rules.
@@ -183,8 +193,11 @@ uses IBM Plex Mono to read like real credential/ticket data.
 ```
 index.html              Entry point / app shell
 css/style.css            Full design system (tokens, components, responsive rules)
-js/store.js               localStorage data layer + seed data (users, events, registrations…)
+js/config.js               Supabase project URL + anon key
+js/store.js                Supabase-backed data layer (was localStorage; see supabase/schema.sql)
 js/utils.js                Formatting, toasts, modals, CSV/PDF export, eligibility rules
+supabase/schema.sql                          Database tables, RLS policies, auto-profile trigger
+supabase/schema_patch_1_signup_checks.sql    Pre-login email/student-ID availability checks
 js/router.js               Minimal hash-based router
 js/components.js           Shared UI: app shell/nav, ticket card, icons
 js/view.auth.js            Login / account creation
@@ -195,11 +208,12 @@ js/view.admin.js           Admin dashboard, event management, registrations, che
 js/app.js                  Bootstraps routes and global interactions
 ```
 
-## Resetting the demo data
+## Clearing or resetting data
 
-Open the browser console on the app and run:
-```js
-Store.reset()
-```
-then refresh the page, to wipe all local changes and restore the original
-seeded events and accounts.
+There's no in-app reset anymore, since wiping data now means wiping it for
+*everyone*, not just your own browser. To clear something out, use the
+Supabase Table Editor (or the SQL Editor for bulk deletes) directly — e.g.
+`delete from events;` to remove every event, or delete individual rows from
+the table view. Accounts are deleted from Authentication → Users in the
+Supabase dashboard (deleting the `auth.users` row cascades to remove the
+matching `profiles` row automatically).

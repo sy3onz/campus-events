@@ -78,7 +78,7 @@
     });
   }
 
-  Forms['update-profile'] = function(form){
+  Forms['update-profile'] = async function(form){
     const user = window.App.currentUser();
     const fd = new FormData(form);
     const noMiddle = document.getElementById('acct-noMiddle').checked;
@@ -101,29 +101,40 @@
       return;
     }
     const emailChanged = email !== user.email;
-    Store.updateUser(user.id, {firstName, middleName, lastName, noMiddleName:noMiddle, email});
-    Store.notify(user.id, `Your profile was updated${emailChanged ? ' \u2014 email changed to '+email : ''}.`);
-    Utils.sendAccountEmail(email, 'Your Campus Pass account details were updated.');
-    Utils.toast('Profile updated.', 'success');
-    window.App.rerender();
+    const submitBtn = form.querySelector('button[type=submit]');
+    submitBtn.disabled = true;
+    try{
+      await Store.updateUser(user.id, {firstName, middleName, lastName, noMiddleName:noMiddle, email});
+      await Store.notify(user.id, `Your profile was updated${emailChanged ? ' \u2014 email changed to '+email : ''}.`);
+      Utils.sendAccountEmail(email, 'Your Campus Pass account details were updated.');
+      Utils.toast('Profile updated.', 'success');
+      window.App.rerender();
+    }catch(err){
+      Utils.toast('Could not save your profile \u2014 please try again.', 'error');
+    }finally{
+      submitBtn.disabled = false;
+    }
   };
 
-  Forms['change-password'] = function(form){
+  Forms['change-password'] = async function(form){
     const user = window.App.currentUser();
     const fd = new FormData(form);
     const current = fd.get('current');
     const next = fd.get('next');
     const confirm = fd.get('confirm');
-    if(user.password !== current){
-      Utils.toast('Current password is incorrect.', 'error');
-      return;
-    }
     if(next !== confirm){
       Utils.toast('New passwords do not match.', 'error');
       return;
     }
-    Store.updateUser(user.id, {password: next});
-    Store.notify(user.id, 'Your password was changed.');
+    const submitBtn = form.querySelector('button[type=submit]');
+    submitBtn.disabled = true;
+    const result = await Store.changePassword(user.email, current, next);
+    submitBtn.disabled = false;
+    if(!result.ok){
+      Utils.toast(result.error || 'Current password is incorrect.', 'error');
+      return;
+    }
+    await Store.notify(user.id, 'Your password was changed.');
     Utils.sendAccountEmail(user.email, 'Your Campus Pass password was changed.');
     Utils.toast('Password updated.', 'success');
     form.reset();

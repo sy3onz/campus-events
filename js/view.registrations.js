@@ -71,7 +71,7 @@
       <div class="qr-pass">
         <div class="qr-pass-card">
           <div style="position:relative;">
-            <div style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--gold-bright);margin-bottom:6px;">Digital Ticket</div>
+            <div style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--gold);margin-bottom:6px;">Digital Ticket</div>
             <h2 style="color:#fff;font-size:20px;">${Utils.esc(ev.title)}</h2>
             <div style="font-size:12.5px;color:rgba(255,255,255,.7);margin-top:6px;">${Utils.fmtDateRange(ev.startDate, ev.endDate)}</div>
             <div class="qr-box" id="qr-box"></div>

@@ -107,11 +107,11 @@
     });
   }
 
-  Actions['publish-event'] = (ds)=>{ Store.updateEvent(ds.eventId, {status:'published'}); Utils.toast('Event published.', 'success'); window.App.rerender(); };
-  Actions['archive-event'] = (ds)=>{ Store.updateEvent(ds.eventId, {status:'archived'}); Utils.toast('Event archived.', 'success'); window.App.rerender(); };
+  Actions['publish-event'] = async (ds)=>{ await Store.updateEvent(ds.eventId, {status:'published'}); Utils.toast('Event published.', 'success'); window.App.rerender(); };
+  Actions['archive-event'] = async (ds)=>{ await Store.updateEvent(ds.eventId, {status:'archived'}); Utils.toast('Event archived.', 'success'); window.App.rerender(); };
   Actions['delete-event'] = (ds)=>{
-    Comp.confirmDialog('This permanently deletes the event and all its registrations.', ()=>{
-      Store.deleteEvent(ds.eventId); Utils.toast('Event deleted.', 'success'); window.App.rerender();
+    Comp.confirmDialog('This permanently deletes the event and all its registrations.', async ()=>{
+      await Store.deleteEvent(ds.eventId); Utils.toast('Event deleted.', 'success'); window.App.rerender();
     }, {title:'Delete event?', danger:true, confirmLabel:'Delete'});
   };
 
@@ -220,7 +220,7 @@
     });
   };
 
-  Actions['remove-activity-row'] = (ds, e, el)=>{
+  Actions['remove-activity-row'] = async (ds, e, el)=>{
     const row = el.closest('[data-activity-row]');
     const activityId = row.dataset.activityId;
     const form = row.closest('form');
@@ -228,15 +228,19 @@
     if(activityId && eventId){
       const ok = window.confirm('Remove this activity? Existing registrations keep their record, but it will no longer accept new sign-ups.');
       if(!ok) return;
-      Store.deleteActivity(eventId, activityId);
-      row.remove();
-      Utils.toast('Activity removed.', 'success');
+      try{
+        await Store.deleteActivity(eventId, activityId);
+        row.remove();
+        Utils.toast('Activity removed.', 'success');
+      }catch(err){
+        Utils.toast('Could not remove the activity \u2014 please try again.', 'error');
+      }
     } else {
       row.remove();
     }
   };
 
-  Forms['event-form'] = (form)=>{
+  Forms['event-form'] = async (form)=>{
     const fd = new FormData(form);
     const eventId = form.dataset.eventId;
     const roles = fd.getAll('role');
@@ -256,32 +260,40 @@
     };
     if(patch.endDate < patch.startDate){ Utils.toast('End date must be after the start date.', 'error'); return; }
 
-    const rows = form.querySelectorAll('[data-activity-row]');
+    const submitBtn = form.querySelector('button[type=submit]');
+    if(submitBtn) submitBtn.disabled = true;
+    const rows = Array.from(form.querySelectorAll('[data-activity-row]'));
     let ev;
-    if(eventId){
-      ev = Store.updateEvent(eventId, patch);
-      rows.forEach(row=>{
-        const name = row.querySelector('[name=a-name]').value.trim();
-        if(!name) return;
-        const cap = parseInt(row.querySelector('[name=a-cap]').value)||0;
-        const dl = row.querySelector('[name=a-deadline]').value;
-        const deadline = dl ? new Date(dl).getTime() : null;
-        const existingId = row.dataset.activityId;
-        if(existingId){ Store.updateActivity(eventId, existingId, {name, capacity:cap, deadline}); }
-        else { Store.addActivity(eventId, {name, capacity:cap, deadline}); }
-      });
-      Utils.toast('Event updated.', 'success');
-    } else {
-      ev = Store.createEvent(Object.assign({status:'draft', activities:[], createdBy: window.App.currentUser().id}, patch));
-      rows.forEach(row=>{
-        const name = row.querySelector('[name=a-name]').value.trim();
-        if(!name) return;
-        const cap = parseInt(row.querySelector('[name=a-cap]').value)||0;
-        const dl = row.querySelector('[name=a-deadline]').value;
-        const deadline = dl ? new Date(dl).getTime() : null;
-        Store.addActivity(ev.id, {name, capacity:cap, deadline});
-      });
-      Utils.toast('Event created as a draft. Publish it when ready.', 'success');
+    try{
+      if(eventId){
+        ev = await Store.updateEvent(eventId, patch);
+        for(const row of rows){
+          const name = row.querySelector('[name=a-name]').value.trim();
+          if(!name) continue;
+          const cap = parseInt(row.querySelector('[name=a-cap]').value)||0;
+          const dl = row.querySelector('[name=a-deadline]').value;
+          const deadline = dl ? new Date(dl).getTime() : null;
+          const existingId = row.dataset.activityId;
+          if(existingId){ await Store.updateActivity(eventId, existingId, {name, capacity:cap, deadline}); }
+          else { await Store.addActivity(eventId, {name, capacity:cap, deadline}); }
+        }
+        Utils.toast('Event updated.', 'success');
+      } else {
+        ev = await Store.createEvent(Object.assign({status:'draft', createdBy: window.App.currentUser().id}, patch));
+        for(const row of rows){
+          const name = row.querySelector('[name=a-name]').value.trim();
+          if(!name) continue;
+          const cap = parseInt(row.querySelector('[name=a-cap]').value)||0;
+          const dl = row.querySelector('[name=a-deadline]').value;
+          const deadline = dl ? new Date(dl).getTime() : null;
+          await Store.addActivity(ev.id, {name, capacity:cap, deadline});
+        }
+        Utils.toast('Event created as a draft. Publish it when ready.', 'success');
+      }
+    }catch(err){
+      Utils.toast('Could not save the event \u2014 please try again.', 'error');
+      if(submitBtn) submitBtn.disabled = false;
+      return;
     }
     Utils.closeModal();
     window.App.rerender();
@@ -386,10 +398,19 @@
     });
   }
 
-  Actions['change-status'] = (ds, e, el)=>{
-    Store.updateRegistration(ds.regId, {status: el.value});
-    el.dataset.status = el.value;
-    Utils.toast('Status updated.', 'success');
+  Actions['change-status'] = async (ds, e, el)=>{
+    const prevValue = el.dataset.status;
+    el.disabled = true;
+    try{
+      await Store.updateRegistration(ds.regId, {status: el.value});
+      el.dataset.status = el.value;
+      Utils.toast('Status updated.', 'success');
+    }catch(err){
+      el.value = prevValue; // roll back the dropdown if the save failed
+      Utils.toast('Could not update status \u2014 please try again.', 'error');
+    }finally{
+      el.disabled = false;
+    }
   };
 
   // ================= REGISTRATION DETAIL (dashboard + registrations table) =================
@@ -455,7 +476,7 @@
         </fieldset>` : ''}
         <button class="btn btn-gold btn-block" id="save-reg-edit" data-reg-id="${r.id}">Save changes</button>
       </div>`, {});
-    document.getElementById('save-reg-edit').addEventListener('click', (e)=>{
+    document.getElementById('save-reg-edit').addEventListener('click', async (e)=>{
       const regId = e.target.dataset.regId;
       const name = document.getElementById('edit-reg-name').value.trim();
       const section = document.getElementById('edit-reg-section').value.trim();
@@ -464,10 +485,16 @@
       const reg = Store.getRegistration(regId);
       const userSnapshot = Object.assign({}, reg.userSnapshot, {name, section});
       const extraFields = Object.assign({}, reg.extraFields, {section});
-      Store.updateRegistration(regId, {userSnapshot, extraFields, activityIds});
-      Utils.closeModal();
-      Utils.toast('Registration updated.', 'success');
-      window.App.rerender();
+      e.target.disabled = true;
+      try{
+        await Store.updateRegistration(regId, {userSnapshot, extraFields, activityIds});
+        Utils.closeModal();
+        Utils.toast('Registration updated.', 'success');
+        window.App.rerender();
+      }catch(err){
+        Utils.toast('Could not save changes \u2014 please try again.', 'error');
+        e.target.disabled = false;
+      }
     });
   };
 
@@ -544,32 +571,44 @@
     root.querySelectorAll('[data-set-role]').forEach(el=> el.addEventListener('click', ()=>{ userMgmtFilter.role = el.dataset.setRole; renderManageUsers(user); }));
   }
 
-  Actions['change-user-role'] = (ds, e, el)=>{
+  Actions['change-user-role'] = async (ds, e, el)=>{
     const current = window.App.currentUser();
     if(ds.userId === current.id){
       Utils.toast("You can't change your own role.", 'error');
       window.App.rerender();
       return;
     }
-    Store.updateUser(ds.userId, {role: el.value});
-    Utils.toast('Role updated.', 'success');
+    try{
+      await Store.updateUser(ds.userId, {role: el.value});
+      Utils.toast('Role updated.', 'success');
+    }catch(err){
+      Utils.toast('Could not update role \u2014 please try again.', 'error');
+    }
     window.App.rerender();
   };
   Actions['deactivate-user'] = (ds)=>{
     const u = Store.getUser(ds.userId);
-    Comp.confirmDialog(`${Utils.esc(u.name)} will no longer be able to log in until reactivated.`, ()=>{
-      Store.updateUser(ds.userId, {active:false});
-      Utils.toast('Account deactivated.', 'success');
+    Comp.confirmDialog(`${Utils.esc(u.name)} will no longer be able to log in until reactivated.`, async ()=>{
+      try{
+        await Store.updateUser(ds.userId, {active:false});
+        Utils.toast('Account deactivated.', 'success');
+      }catch(err){
+        Utils.toast('Could not deactivate \u2014 please try again.', 'error');
+      }
       window.App.rerender();
     }, {title:'Deactivate this account?', danger:true, confirmLabel:'Deactivate'});
   };
-  Actions['reactivate-user'] = (ds)=>{
-    Store.updateUser(ds.userId, {active:true});
-    Utils.toast('Account reactivated.', 'success');
+  Actions['reactivate-user'] = async (ds)=>{
+    try{
+      await Store.updateUser(ds.userId, {active:true});
+      Utils.toast('Account reactivated.', 'success');
+    }catch(err){
+      Utils.toast('Could not reactivate \u2014 please try again.', 'error');
+    }
     window.App.rerender();
   };
-  Actions['checkin-reg'] = (ds)=>{
-    const res = Store.checkIn(ds.regId);
+  Actions['checkin-reg'] = async (ds)=>{
+    const res = await Store.checkIn(ds.regId);
     if(res.ok){ Utils.toast(res.reg.userSnapshot.name+' checked in.', 'success'); window.App.rerender(); }
     else if(res.reason==='too_early'){ Utils.toast(`It's not time for this event yet \u2014 check-in opens once it starts.`, 'error'); }
     else if(res.reason==='already'){ Utils.toast('Already checked in.', 'error'); }
@@ -632,10 +671,10 @@
         </div>`;
       }
     }
-    document.getElementById('checkin-submit').addEventListener('click', ()=>{
+    document.getElementById('checkin-submit').addEventListener('click', async ()=>{
       const code = document.getElementById('checkin-code').value.trim();
       if(!code){ Utils.toast('Enter a ticket code first.', 'error'); return; }
-      showResult(Store.checkIn(code));
+      showResult(await Store.checkIn(code));
       document.getElementById('checkin-code').value='';
       document.getElementById('checkin-code').focus();
       renderList();
@@ -666,13 +705,14 @@
         </div>`;
       }).join('') || `<p class="muted" style="font-size:12.5px;">${q?'No matches.':'No registrants in this category.'}</p>`;
     }
-    listEl.addEventListener('click', (e)=>{
+    listEl.addEventListener('click', async (e)=>{
       const btn = e.target.closest('[data-inline-checkin]');
       if(!btn) return;
-      const res = Store.checkIn(btn.dataset.inlineCheckin);
+      btn.disabled = true;
+      const res = await Store.checkIn(btn.dataset.inlineCheckin);
       if(res.ok){ Utils.toast(res.reg.userSnapshot.name+' checked in.', 'success'); renderList(); }
-      else if(res.reason==='too_early'){ Utils.toast(`It's not time for this event yet.`, 'error'); }
-      else Utils.toast('Could not check in this registrant.', 'error');
+      else if(res.reason==='too_early'){ Utils.toast(`It's not time for this event yet.`, 'error'); btn.disabled=false; }
+      else { Utils.toast('Could not check in this registrant.', 'error'); btn.disabled=false; }
     });
     document.getElementById('checkin-event').addEventListener('change', ()=>{ searchInput.disabled = !document.getElementById('checkin-event').value; renderList(); });
     document.getElementById('checkin-status-tabs').addEventListener('click', (e)=>{
@@ -763,24 +803,37 @@
     audSel.addEventListener('change', ()=>{ coursesField.style.display = audSel.value==='courses' ? 'block':'none'; });
   }
 
-  Forms['new-announcement'] = (form)=>{
+  Forms['new-announcement'] = async (form)=>{
     const fd = new FormData(form);
     const user = window.App.currentUser();
     const audienceType = fd.get('audienceType');
     const courses = fd.getAll('courses');
     const expiresRaw = fd.get('expiresAt');
-    Store.createAnnouncement({
-      title:fd.get('title').trim(), body:fd.get('body').trim(), eventId: fd.get('eventId')||null,
-      createdBy: user.id, createdByRole: user.role,
-      audience:{type: audienceType, courses: audienceType==='courses' ? courses : []},
-      expiresAt: expiresRaw ? new Date(expiresRaw).getTime() : null
-    });
-    Utils.toast('Announcement posted.', 'success');
-    window.App.rerender();
+    const submitBtn = form.querySelector('button[type=submit]');
+    if(submitBtn) submitBtn.disabled = true;
+    try{
+      await Store.createAnnouncement({
+        title:fd.get('title').trim(), body:fd.get('body').trim(), eventId: fd.get('eventId')||null,
+        createdBy: user.id, createdByRole: user.role,
+        audience:{type: audienceType, courses: audienceType==='courses' ? courses : []},
+        expiresAt: expiresRaw ? new Date(expiresRaw).getTime() : null
+      });
+      Utils.toast('Announcement posted.', 'success');
+      window.App.rerender();
+    }catch(err){
+      Utils.toast('Could not post the announcement \u2014 please try again.', 'error');
+      if(submitBtn) submitBtn.disabled = false;
+    }
   };
   Actions['delete-announcement'] = (ds)=>{
-    Comp.confirmDialog('This removes the announcement for everyone.', ()=>{
-      Store.deleteAnnouncement(ds.anId); Utils.toast('Announcement deleted.', 'success'); window.App.rerender();
+    Comp.confirmDialog('This removes the announcement for everyone.', async ()=>{
+      try{
+        await Store.deleteAnnouncement(ds.anId);
+        Utils.toast('Announcement deleted.', 'success');
+        window.App.rerender();
+      }catch(err){
+        Utils.toast('Could not delete \u2014 please try again.', 'error');
+      }
     }, {title:'Delete announcement?', danger:true, confirmLabel:'Delete'});
   };
 
