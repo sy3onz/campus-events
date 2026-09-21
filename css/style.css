@@ -276,9 +276,27 @@ input:focus,select:focus,textarea:focus{outline:none; border-color:var(--gold-de
 fieldset{border:1px solid var(--line); border-radius:var(--radius-s); padding:12px 14px; margin:0 0 16px;}
 legend{font-size:12px; font-weight:700; color:var(--ink); padding:0 6px;}
 
-.auth-shell{min-height:100vh; display:flex; align-items:center; justify-content:center; background:var(--ink); padding:24px;
-  background-image:radial-gradient(circle at 15% 20%, rgba(169,185,124,.16), transparent 40%), radial-gradient(circle at 85% 80%, rgba(169,185,124,.10), transparent 45%);}
-.auth-card{width:100%; max-width:420px; background:var(--card); border-radius:var(--radius-l); padding:34px 32px; box-shadow:var(--shadow-pop);}
+.auth-shell{min-height:100vh; position:relative; overflow:hidden; display:flex; align-items:center; justify-content:center; background:var(--ink); padding:24px;}
+.auth-bg{position:absolute; inset:0;}
+.auth-bg-aurora{
+  position:absolute; inset:-6%;
+  background:url('../assets/aurora-borealis.jpg') center/cover no-repeat;
+  filter:saturate(1.15) brightness(.92);
+  transform:scale(1.05);
+}
+.auth-bg-tint{
+  position:absolute; inset:0;
+  background:linear-gradient(160deg, rgba(40,54,24,.92) 0%, rgba(40,54,24,.76) 42%, rgba(96,108,56,.52) 100%);
+}
+.auth-bg-terminal{position:absolute; inset:0; mix-blend-mode:screen; opacity:.6;}
+.auth-bg-terminal canvas{display:block;}
+.auth-card{
+  position:relative; z-index:1;
+  width:100%; max-width:420px; background:rgba(255,254,247,.94);
+  backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
+  border:1px solid rgba(255,255,255,.4);
+  border-radius:var(--radius-l); padding:34px 32px; box-shadow:0 25px 60px rgba(20,26,12,.5);
+}
 .auth-card.wide{max-width:500px;}
 .auth-brand{display:flex; align-items:center; gap:10px; margin-bottom:22px;}
 .auth-tabs{display:flex; gap:4px; background:var(--paper-dim); padding:4px; border-radius:11px; margin-bottom:22px;}

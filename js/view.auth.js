@@ -2,12 +2,22 @@
    view.auth.js — login & account registration
    ========================================================= */
 (function(){
+  let terminalController = null;
+  function destroyTerminal(){
+    if(terminalController){ terminalController.destroy(); terminalController = null; }
+  }
 
   function renderAuth(mode){
+    destroyTerminal();
     mode = mode || 'login';
     const root = document.getElementById('app-root');
     root.innerHTML = `
     <div class="auth-shell">
+      <div class="auth-bg">
+        <div class="auth-bg-aurora"></div>
+        <div class="auth-bg-tint"></div>
+        <div class="auth-bg-terminal" id="auth-terminal"></div>
+      </div>
       <div class="auth-card ${mode==='signup'?'wide':''}">
         <div class="auth-brand">
           <div class="brand-mark">CP</div>
@@ -27,6 +37,25 @@
     root.querySelectorAll('[data-set-mode]').forEach(el=>{
       el.addEventListener('click', ()=> renderAuth(el.dataset.setMode));
     });
+
+    if(window.FaultyTerminal){
+      const terminalEl = document.getElementById('auth-terminal');
+      window.FaultyTerminal.mount(terminalEl, {
+        scale:1.3, gridMul:[2,1], digitSize:1.6, timeScale:0.3,
+        scanlineIntensity:0.22, glitchAmount:0.7, flickerAmount:0.6,
+        noiseAmp:1, chromaticAberration:0, dither:0.4, curvature:0.14,
+        tint:'#A9B97C', mouseReact:true, mouseStrength:0.35,
+        pageLoadAnimation:true, brightness:0.85, lightMode:false
+      }).then(ctrl=>{
+        // If the user already navigated away (fast login) while the CDN
+        // module was loading, don't leave an orphaned effect running.
+        if(document.getElementById('auth-terminal')===terminalEl && terminalEl.isConnected){
+          terminalController = ctrl;
+        } else {
+          ctrl.destroy();
+        }
+      });
+    }
   }
 
   function renderForm(mode){
@@ -74,6 +103,7 @@
         }
         Store.setSession(user.id);
         Utils.toast('Welcome back, '+user.name.split(' ')[0]+'!', 'success');
+        destroyTerminal();
         window.App.boot();
       });
     } else {
@@ -307,6 +337,7 @@
         });
         Store.setSession(user.id);
         Utils.toast('Account created. Welcome to Campus Pass!', 'success');
+        destroyTerminal();
         window.App.boot();
       });
     }
