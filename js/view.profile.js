@@ -61,7 +61,7 @@
             <span class="badge" style="position:relative;background:${isActive?'rgba(232,163,61,.18)':'rgba(188,108,37,.28)'};color:${isActive?'var(--gold)':'#F0C89B'};">${isActive?'Active':'Inactive'}</span>
           </div>
           <div style="display:flex;align-items:center;gap:14px;margin-top:20px;position:relative;text-align:left;">
-            <div style="width:56px;height:56px;border-radius:50%;background:rgba(255,255,255,.12);color:var(--gold);display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-size:19px;font-weight:600;flex:none;">${Utils.initials(user.name)}</div>
+            ${Comp.avatarHtml(user, 56, {dark:true})}
             <div style="min-width:0;">
               <div style="font-family:var(--font-display);font-size:19px;color:#fff;line-height:1.2;">${Utils.esc(user.name)}</div>
               <div style="font-size:11.5px;color:rgba(255,255,255,.65);margin-top:2px;">${Utils.esc(subtitleLine(user))}</div>
@@ -107,9 +107,16 @@
         doc.setTextColor(255,255,255); doc.setFontSize(9);
         doc.text('CAMPUS PASS \u2014 '+passLabel.toUpperCase(), 8, 12);
         doc.setFontSize(14);
-        doc.text(user.name, 8, 24, {maxWidth:74});
+        doc.text(user.name, 8, 24, {maxWidth: user.avatarUrl ? 56 : 74});
         doc.setFontSize(9); doc.setTextColor(232,163,61);
-        doc.text(subtitleLine(user) || ' ', 8, 32, {maxWidth:74});
+        doc.text(subtitleLine(user) || ' ', 8, 32, {maxWidth: user.avatarUrl ? 56 : 74});
+        if(user.avatarUrl){
+          const fmtMatch = /^data:image\/(png|jpe?g|webp)/i.exec(user.avatarUrl);
+          if(fmtMatch){
+            try{ doc.addImage(user.avatarUrl, fmtMatch[1].toUpperCase().replace('JPG','JPEG'), 68, 8, 16, 16); }
+            catch(imgErr){ /* malformed/unsupported image data \u2014 just skip the thumbnail */ }
+          }
+        }
 
         doc.setTextColor(40,54,24); doc.setFontSize(10);
         let y = 52;

@@ -1,6 +1,23 @@
 # Campus Pass — School Event Management System
 
-> **Recent updates (newest):** the app now runs on a **real, shared
+> **Recent updates (newest):** added a **"My ID"** page (Account →
+> My ID) rendering the signed-in user's own account as a Campus Pass ID
+> card \u2014 name, role, Student/Employee/Alumni ID, and (for students)
+> course/strand, year/grade level, and section \u2014 with a QR code and a
+> downloadable wallet-card PDF. Account Settings now lets people **edit
+> their own academic info** (course, year level, strand, grade level,
+> section) alongside the existing name/email fields, **upload a profile
+> photo** (JPG/PNG/WEBP, capped client-side at 10MB \u2014 see
+> `supabase/schema_patch_2_avatar.sql`) which now shows up in the sidebar
+> and on the ID card in place of initials, and shows a **"Past events
+> you've joined"** table pulled from the account's own registration
+> history. Admin- and faculty-issued registrations (including matched
+> accounts added through bulk class registration) now correctly show up
+> on that person's own "My Registrations" page instead of being hidden;
+> faculty can now bulk-register a class (or add an individual no-account
+> student) even after they've registered themselves for the event.
+>
+> **Recent updates (prior round):** the app now runs on a **real, shared
 > Supabase (Postgres) database** instead of each browser's own
 > `localStorage`. Every account, event, registration, announcement, and
 > audit-log entry now lives in one place that every visitor's browser
@@ -99,9 +116,9 @@ just the browser that created it.
 ## How to run it
 
 1. Set up the database once, if you haven't yet: create a Supabase project,
-   then run `supabase/schema.sql` and `supabase/schema_patch_1_signup_checks.sql`
-   in its SQL Editor (in that order). Put your project's URL and anon key
-   into `js/config.js`.
+   then run `supabase/schema.sql`, `supabase/schema_patch_1_signup_checks.sql`,
+   and `supabase/schema_patch_2_avatar.sql` in its SQL Editor (in that
+   order). Put your project's URL and anon key into `js/config.js`.
 2. In Supabase, go to Authentication → Providers → Email and turn off
    **"Confirm email"** (and, in Authentication → Settings, "Secure email
    change") so signup and email changes work instantly, matching this
@@ -198,6 +215,7 @@ js/store.js                Supabase-backed data layer (was localStorage; see sup
 js/utils.js                Formatting, toasts, modals, CSV/PDF export, eligibility rules
 supabase/schema.sql                          Database tables, RLS policies, auto-profile trigger
 supabase/schema_patch_1_signup_checks.sql    Pre-login email/student-ID availability checks
+supabase/schema_patch_2_avatar.sql           Adds the avatar_url column used by profile photos
 js/router.js               Minimal hash-based router
 js/components.js           Shared UI: app shell/nav, ticket card, icons
 js/view.auth.js            Login / account creation

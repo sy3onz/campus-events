@@ -27,6 +27,22 @@
     eyeOff:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 19c-7 0-11-7-11-7a21.6 21.6 0 0 1 5.06-5.94M9.9 4.24A10.94 10.94 0 0 1 12 5c7 0 11 7 11 7a21.6 21.6 0 0 1-2.16 3.19M14.12 14.12a3 3 0 1 1-4.24-4.24"/><path d="M1 1l22 22"/></svg>',
   };
 
+  // Renders either the user's uploaded photo (if set) or their initials,
+  // at a given pixel size. `opts.dark` switches to the translucent
+  // light-on-dark styling used on the ID card; omit it for the normal
+  // cream-background contexts (sidebar, account settings).
+  function avatarHtml(user, size, opts){
+    opts = opts || {};
+    const base = `width:${size}px;height:${size}px;border-radius:50%;flex:none;`;
+    if(user.avatarUrl){
+      return `<img src="${user.avatarUrl}" alt="${Utils.esc(user.name)}" style="${base}object-fit:cover;">`;
+    }
+    const bg = opts.dark ? 'rgba(255,255,255,.12)' : 'var(--gold-bg)';
+    const color = opts.dark ? 'var(--gold)' : 'var(--gold-deep)';
+    const fontSize = Math.round(size*0.36);
+    return `<div style="${base}background:${bg};color:${color};display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:700;font-size:${fontSize}px;">${Utils.initials(user.name)}</div>`;
+  }
+
   function navConfig(role){
     const base = [
       {group:'Events', items:[
@@ -82,7 +98,7 @@
         <nav style="flex:1; overflow-y:auto;">${navHtml}</nav>
         <div class="sidebar-foot">
           <div class="user-chip">
-            <div class="user-avatar">${Utils.initials(user.name)}</div>
+            ${avatarHtml(user, 32)}
             <div>
               <div class="user-meta-name">${Utils.esc(user.name)}</div>
               <div class="user-meta-role">${user.role}</div>
@@ -209,5 +225,5 @@
     backdrop.querySelector('#confirm-yes').addEventListener('click', ()=>{ Utils.closeModal(); onConfirm(); });
   }
 
-  window.Comp = { Icon, shell, eventTicketCard, eventStatusOf, eventStatusBadge, openNotifs, confirmDialog };
+  window.Comp = { Icon, shell, eventTicketCard, eventStatusOf, eventStatusBadge, openNotifs, confirmDialog, avatarHtml };
 })();

@@ -57,7 +57,8 @@
       id:r.id, firstName:r.first_name, middleName:r.middle_name, lastName:r.last_name,
       noMiddleName:r.no_middle_name, name:r.name, email:r.email, role:r.role, active:r.active,
       studentId:r.student_id, level:r.level, course:r.course, strand:r.strand,
-      yearLevel:r.year_level, gradeLevel:r.grade_level, section:r.section, createdAt:toMs(r.created_at)
+      yearLevel:r.year_level, gradeLevel:r.grade_level, section:r.section, avatarUrl:r.avatar_url||'',
+      createdAt:toMs(r.created_at)
     };
   }
   function userToRow(u){
@@ -77,6 +78,7 @@
     if('yearLevel' in u) row.year_level = u.yearLevel;
     if('gradeLevel' in u) row.grade_level = u.gradeLevel;
     if('section' in u) row.section = u.section;
+    if('avatarUrl' in u) row.avatar_url = u.avatarUrl || null;
     return row;
   }
   function eventFromRow(r){
