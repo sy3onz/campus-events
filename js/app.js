@@ -22,6 +22,7 @@
     Router.register('/my-registrations', guard((user)=> Views.renderMyRegistrations(user)));
     Router.register('/ticket/:id', guard((user, p)=> Views.renderTicket(user, p.id)));
     Router.register('/announcements', guard((user)=> Views.renderAnnouncements(user)));
+    Router.register('/profile', guard((user)=> Views.renderProfile(user)));
     Router.register('/admin', guard((user)=> Views.renderDashboard(user)));
     Router.register('/admin/events', guard((user)=> Views.renderManageEvents(user)));
     Router.register('/admin/events/:id/registrations', guard((user, p, q)=> Views.renderEventRegistrations(user, p.id, q)));
